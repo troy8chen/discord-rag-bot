@@ -94,4 +94,30 @@ Desktop.ini
 
 # Docker
 Dockerfile.local
-docker-compose.local.yml 
+docker-compose.local.yml
+
+# Cursor IDE
+.cursor/
+
+# Development secrets and keys
+*.pem
+*.key
+secrets.json
+config/secrets/
+
+# Local development overrides
+.env.override
+docker-compose.override.yml
+
+# Runtime data
+*.pid.lock
+*.seed
+
+# Backup files
+*.backup
+*.bak
+*~
+
+# Editor swap files
+*.swp
+*.swo 
