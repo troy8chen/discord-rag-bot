@@ -68,7 +68,7 @@ git clone https://github.com/troy8chen/tech-docs.git
 # 2. Setup RAG Service (tech-docs)
 cd tech-docs
 npm install
-cp .env.example .env.local
+cp .env.example .env
 # Configure: OPENAI_API_KEY, PINECONE_API_KEY, PINECONE_INDEX_NAME, REDIS_URL
 
 # 3. Setup Discord Bot (discord-rag-bot)  
