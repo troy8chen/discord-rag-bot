@@ -1,12 +1,28 @@
 # Discord RAG Bot 🤖
 
+> **🎯 LIVE & READY! Try the bot now:** **[Discord Test Channel](https://discord.com/channels/1378047991264579745/1378047991910236214)**  
+> **Bot:** `DocsAI#6774` | **Status:** ✅ Deployed on Render | **Uptime:** 24/7
+
 > **AI-Powered Discord Bot with Expert Knowledge Base**  
 > Production-ready Discord bot that connects to a RAG (Retrieval-Augmented Generation) service for intelligent document assistance. Powered by Redis event-driven architecture for scalable, real-time AI responses.
 
 [![CI/CD Pipeline](https://github.com/troy8chen/discord-rag-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/troy8chen/discord-rag-bot/actions)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue)](https://github.com/troy8chen/discord-rag-bot/pkgs/container/discord-rag-bot)
+[![Deployed on Render](https://img.shields.io/badge/Render-Deployed-success)](https://discord-rag-bot.onrender.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
-[![Redis](https://img.shields.io/badge/Redis-Event--Driven-red)](https://redis.io/)
+[![Redis Cloud](https://img.shields.io/badge/Redis-Cloud-red)](https://redis.io/)
+
+## 🚀 Current Deployment Status
+
+**✅ LIVE PRODUCTION SYSTEM:**
+- **Discord Bot**: Deployed on Render - `https://discord-rag-bot.onrender.com`
+- **Redis**: Redis Cloud (managed service)
+- **RAG Worker**: Ready to deploy (see deployment section)
+- **Status**: Bot is online and responding to queries
+
+**Quick Test**: Join the Discord channel above and try:
+```
+@DocsAI How do I implement error handling in Next.js?
+```
 
 ## 🏗️ Architecture Overview
 
@@ -14,9 +30,9 @@ This Discord bot works with a **separate RAG service** to provide expert-level a
 
 ```mermaid
 graph TB
-    A[Discord User] --> B[Discord Bot<br/>troy8chen/discord-rag-bot]
-    B --> C[Redis Message Queue]
-    C --> D[RAG Worker<br/>troy8chen/tech-docs]
+    A[Discord User] --> B[Discord Bot<br/>Render Deployment]
+    B --> C[Redis Cloud<br/>Managed Service]
+    C --> D[RAG Worker<br/>Local/Deploy Ready]
     D --> E[AI Knowledge Base<br/>Pinecone + OpenAI]
     E --> D
     D --> C
@@ -24,9 +40,9 @@ graph TB
     B --> A
     
     style A fill:#7289DA
-    style B fill:#5865F2
+    style B fill:#00D924
     style C fill:#DC382D
-    style D fill:#00D924
+    style D fill:#FFD93D
     style E fill:#FF6B6B
 ```
 
@@ -40,117 +56,97 @@ graph TB
 ## 🚀 Quick Start
 
 ### Option 1: Test with Live Bot (Easiest)
-Join our test Discord server to try the bot immediately:
+**The bot is already deployed and ready to use!**
 
 **🔗 [Test Channel](https://discord.com/channels/1378047991264579745/1378047991910236214)**
 
-- Bot: `DocsAI#6774`
-- Use slash commands: `/ask`, `/help`
+- Bot: `DocsAI#6774` (Online 24/7)
+- Use mentions: `@DocsAI your question here`
 - No setup required - just join and test!
-- Need permissions? Contact [@troy8chen](https://github.com/troy8chen)
+- Need access? Contact [@troy8chen](https://github.com/troy8chen)
 
-### Option 2: Run Your Own Instance
+### Option 2: Deploy Your Own Instance
 
 #### 📋 Prerequisites
 - Node.js 18+ 
-- Docker (for Redis)
+- Redis Cloud account (free tier available)
 - Discord Developer Application
-- OpenAI API Key
-- Pinecone Account
+- OpenAI API Key (for RAG worker)
+- Pinecone Account (for RAG worker)
 
-#### 🔧 Repository Setup
+## 🚀 Deployment Guide
 
+### Current Production Setup
+
+**✅ What's Already Deployed:**
+- **Discord Bot**: Running on Render (free tier)
+- **Redis**: Redis Cloud managed service
+- **CI/CD**: GitHub Actions pipeline working
+
+**📋 What You Need to Deploy:**
+- **RAG Worker**: Deploy from [tech-docs repo](https://github.com/troy8chen/tech-docs)
+
+### Deploy RAG Worker (Required for AI Responses)
+
+**Option 1: Render (Recommended - Free)**
 ```bash
-# 1. Clone both repositories
-git clone https://github.com/troy8chen/discord-rag-bot.git
+# 1. Clone RAG service
 git clone https://github.com/troy8chen/tech-docs.git
-
-# 2. Setup RAG Service (tech-docs)
 cd tech-docs
-npm install
-cp .env.example .env
-# Configure: OPENAI_API_KEY, PINECONE_API_KEY, PINECONE_INDEX_NAME, REDIS_URL
 
-# 3. Setup Discord Bot (discord-rag-bot)  
-cd ../discord-rag-bot
-npm install
-cp .env.example .env
-# Configure: DISCORD_BOT_TOKEN, DISCORD_CLIENT_ID, REDIS_URL
+# 2. Create Render account and connect repo
+# 3. Set environment variables in Render:
+OPENAI_API_KEY=sk-your-key
+PINECONE_API_KEY=your-pinecone-key
+PINECONE_INDEX_NAME=tech-docs
+REDIS_URL=your-redis-cloud-url
+
+# 4. Deploy command: npm run rag-worker
 ```
 
-#### 🤖 Discord Bot Configuration
+**Option 2: Railway ($5/month)**
+```bash
+cd tech-docs
+railway login
+railway init
+railway up
+```
+
+### Deploy Your Own Discord Bot (Optional)
+
+If you want your own bot instead of using the live one:
+
+#### 🤖 Discord Bot Setup
 
 1. **Create Discord Application**
    - Go to [Discord Developer Portal](https://discord.com/developers/applications)
    - Click "New Application" → Name your bot
-   - Navigate to "Bot" section → Reset Token (save this as `DISCORD_BOT_TOKEN`)
-   - Copy Application ID (save this as `DISCORD_CLIENT_ID`)
+   - Navigate to "Bot" section → Reset Token (save as `DISCORD_BOT_TOKEN`)
+   - Copy Application ID (save as `DISCORD_CLIENT_ID`)
 
-2. **Configure Bot Permissions**
-   ```
-   Required Permissions:
-   ✅ Send Messages
-   ✅ Use Slash Commands  
-   ✅ Read Message History
-   ✅ Embed Links
-   ✅ Add Reactions
-   ```
+2. **Deploy on Render**
+   - Fork this repository
+   - Connect to Render
+   - Set environment variables:
+     ```env
+     DISCORD_BOT_TOKEN=your_bot_token
+     DISCORD_CLIENT_ID=your_client_id
+     REDIS_URL=your_redis_cloud_url
+     ```
 
 3. **Invite Bot to Server**
    ```
    https://discord.com/api/oauth2/authorize?client_id=YOUR_CLIENT_ID&permissions=277025573888&scope=bot%20applications.commands
    ```
-   Replace `YOUR_CLIENT_ID` with your actual client ID.
-
-#### 🐳 Infrastructure Setup
-
-```bash
-# Start Redis (required for bot communication)
-docker run -d --name redis -p 6379:6379 redis:7-alpine
-
-# Verify Redis is running
-docker exec redis redis-cli ping
-# Should return: PONG
-```
-
-#### ▶️ Start Both Services
-
-```bash
-# Terminal 1: Start RAG Worker (tech-docs)
-cd tech-docs
-npm run rag-worker
-
-# Expected output:
-# ✅ All environment variables loaded
-# ✅ Redis connected  
-# 🤖 RAG worker started, listening for queries...
-
-# Terminal 2: Start Discord Bot (discord-rag-bot)
-cd discord-rag-bot  
-npm run dev
-
-# Expected output:
-# ✅ Discord configuration loaded
-# ✅ Redis connected successfully
-# ✅ Bot logged in as: YourBot#1234
-# 🎯 Discord RAG bot ready!
-```
 
 ## 📚 Usage
-
-### Slash Commands
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/ask <question>` | Ask any question about your knowledge base | `/ask How does rate limiting work?` |
-| `/help` | Show available commands and bot info | `/help` |
 
 ### Example Interactions
 
 ```
-User: /ask How do I implement error handling in my functions?
+User: @DocsAI How do I implement error handling in my functions?
 
-Bot: 🤖 **Expert Answer:**
+DocsAI: 🤖 **Expert Answer:**
 
 Based on the documentation, here are the best practices for error handling:
 
@@ -170,159 +166,56 @@ Based on the documentation, here are the best practices for error handling:
 
 ### Environment Variables
 
-#### Discord Bot (.env)
+#### Discord Bot
 ```env
 # Discord Configuration
 DISCORD_BOT_TOKEN=your_bot_token_here
 DISCORD_CLIENT_ID=your_client_id_here
 
-# Redis Configuration (must match RAG service)
-REDIS_URL=redis://localhost:6379
+# Redis Configuration (Redis Cloud)
+REDIS_URL=redis://username:password@host:port
 
 # Optional Settings
 LOG_LEVEL=info
-NODE_ENV=development
+NODE_ENV=production
 ```
 
-#### RAG Service (tech-docs/.env.local)
+#### RAG Service (tech-docs)
 ```env
 # AI Configuration
 OPENAI_API_KEY=sk-your_openai_key_here
 PINECONE_API_KEY=your_pinecone_key_here  
 PINECONE_INDEX_NAME=tech-docs
 
-# Redis Configuration (must match Discord bot)
-REDIS_URL=redis://localhost:6379
-
-# Optional
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+# Redis Configuration (same as Discord bot)
+REDIS_URL=redis://username:password@host:port
 ```
-
-### Performance Tuning
-
-```env
-# Discord Bot Performance
-USER_RATE_LIMIT_PER_MINUTE=60       # Queries per user per minute
-RESPONSE_TIMEOUT_MS=25000           # Max response wait time
-MAX_CONCURRENT_REQUESTS=10          # Concurrent query limit
-
-# RAG Worker Performance  
-RAG_RESPONSE_TIMEOUT=30000          # AI processing timeout
-VECTOR_SEARCH_LIMIT=5               # Number of knowledge chunks
-SIMILARITY_THRESHOLD=0.4            # Relevance threshold
-```
-
-## 🚀 Deployment
-
-### Option 1: Railway (Recommended)
-
-#### Deploy RAG Service
-```bash
-cd tech-docs
-# Connect to Railway and deploy
-railway login
-railway init
-railway add --service
-railway up
-```
-
-#### Deploy Discord Bot
-```bash
-cd discord-rag-bot  
-railway login
-railway init
-railway add --service
-railway up
-```
-
-#### Configure Environment Variables
-- Set all required environment variables in Railway dashboard
-- Ensure both services use the same Redis URL
-- Use Railway's Redis addon or external Redis service
-
-### Option 2: Docker Deployment
-
-```bash
-# Build and run RAG service
-cd tech-docs
-docker build -t rag-service .
-docker run -d -e OPENAI_API_KEY=... -e REDIS_URL=... rag-service
-
-# Build and run Discord bot
-cd discord-rag-bot
-docker build -t discord-bot .  
-docker run -d -e DISCORD_BOT_TOKEN=... -e REDIS_URL=... discord-bot
-```
-
-### Option 3: Separate Cloud Providers
-
-**RAG Service Options:**
-- Vercel (web interface) + Railway (worker)
-- Render (background worker)
-- DigitalOcean (container)
-
-**Discord Bot Options:**  
-- Railway (Node.js service)
-- Heroku (container)
-- Google Cloud Run
-
-**Redis Options:**
-- **Redis Cloud** (recommended - free tier available)
-- **Railway Redis addon** (if using Railway for apps)
-- **AWS ElastiCache** (enterprise)
-- **DigitalOcean Redis** (mid-scale)
-
-### 🎯 Redis Deployment Strategy
-
-**Why Deploy Redis Separately?**
-
-✅ **Shared Resource**: Both `discord-rag-bot` AND `tech-docs` repos use same Redis  
-✅ **Independent Scaling**: Scale Redis separately from apps  
-✅ **Cost Efficient**: One Redis instance serves multiple services  
-✅ **Better Reliability**: Managed services have built-in backups/monitoring  
-✅ **Microservices Best Practice**: Proper separation of concerns  
-
-**Architecture:**
-```mermaid
-graph TB
-    A[Discord Bot<br/>Railway/Docker] --> D[Redis Cloud<br/>Managed Service]
-    B[RAG Worker<br/>Railway/Docker] --> D
-    C[Next.js Web<br/>Vercel/Railway] --> D
-    
-    style D fill:#ff6b6b,color:#fff
-    style A fill:#e1f5fe
-    style B fill:#f3e5f5
-    style C fill:#e8f5e8
-```
-
-**Setup Instructions:**
-
-1. **Create Redis Cloud Account**: [redis.com/try-free](https://redis.com/try-free/)
-2. **Create Database**:
-   - Choose "Fixed" plan (30MB free)
-   - Select region closest to your deployments
-   - Note the connection string
-3. **Get Connection URL**:
-   ```
-   Format: redis://username:password@host:port
-   Example: redis://default:abc123@redis-12345.c1.us-east-1-1.ec2.cloud.redislabs.com:12345
-   ```
-4. **Update Both Projects**:
-   ```bash
-   # discord-rag-bot/.env
-   REDIS_URL=redis://username:password@host:port
-   
-   # tech-docs/.env.local  
-   REDIS_URL=redis://username:password@host:port
-   ```
-
-**Deployment Benefits:**
-- 🔄 **Zero Downtime**: Update apps without affecting Redis
-- 📊 **Monitoring**: Built-in Redis metrics and alerts
-- 🔧 **Maintenance**: Automatic backups and updates
-- 💰 **Cost**: Free tier supports 1000+ daily queries
 
 ## 🔧 Development
+
+### Local Development Setup
+
+```bash
+# 1. Clone repositories
+git clone https://github.com/troy8chen/discord-rag-bot.git
+git clone https://github.com/troy8chen/tech-docs.git
+
+# 2. Setup Redis Cloud (recommended) or local Redis
+# Redis Cloud: https://redis.com/try-free
+# Local: docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# 3. Setup environment variables (see Configuration section)
+
+# 4. Start RAG worker (Terminal 1)
+cd tech-docs
+npm install
+npm run rag-worker
+
+# 5. Start Discord bot (Terminal 2)
+cd discord-rag-bot  
+npm install
+npm run dev
+```
 
 ### Available Scripts
 
@@ -332,132 +225,55 @@ npm run dev          # Start with hot reload
 npm run build        # Production build
 npm run start        # Start production build
 npm run test         # Run test suite
+npm run test:redis   # Test Redis connection
 npm run lint         # ESLint checking
-npm run type-check   # TypeScript validation
-
-# Infrastructure
-npm run setup        # Automated development setup
 ```
 
-### Development Workflow
-
-```bash
-# 1. Start Redis
-docker run -d --name dev-redis -p 6379:6379 redis:7-alpine
-
-# 2. Start RAG worker (Terminal 1)
-cd tech-docs && npm run rag-worker
-
-# 3. Start Discord bot (Terminal 2)  
-cd discord-rag-bot && npm run dev
-
-# 4. Test in Discord or via Redis CLI
-docker exec dev-redis redis-cli PUBLISH rag:query '{"id":"test","userId":"dev","channelId":"test","message":"Hello","domain":"inngest","timestamp":1234567890}'
-```
-
-### Testing
-
-```bash
-# Run test suite
-npm test
-
-# Test with coverage
-npm run test:coverage
-
-# Test specific component
-npm test -- --testPathPattern=config.test.ts
-```
-
-## 📊 Monitoring & Health
+## 📊 Production Monitoring
 
 ### Health Endpoints
 
-The bot exposes health monitoring endpoints:
+The deployed bot includes health monitoring:
 
 ```bash
-# Basic health check
-curl http://localhost:3000/
+# Production health check
+curl https://discord-rag-bot.onrender.com/health
 
-# Detailed status (Discord + Redis)
+# Local development health
 curl http://localhost:3000/health
-
-# Performance metrics
-curl http://localhost:3000/metrics
 ```
 
 ### Logging
 
-Production logs include:
+Production logs are available in Render dashboard:
 - User query processing times
 - Redis connection status
 - Discord API interactions
 - Error tracking and debugging
-- Performance metrics
-
-```bash
-# View logs in production
-npm start | grep "level=error"    # Errors only
-npm start | grep "responseTime"   # Performance
-```
 
 ## 🔍 Troubleshooting
 
 ### Common Issues
 
-#### "Bot not responding"
-```bash
-# Check Discord connection
-curl http://localhost:3000/health
+#### Bot not responding in Discord
+- **Check**: Bot is online in Discord member list
+- **Verify**: Render deployment logs show successful startup
+- **Test**: Health endpoint returns 200 OK
 
-# Verify Redis connection
-docker exec redis redis-cli ping
+#### RAG responses are generic/unhelpful
+- **Check**: RAG worker is deployed and running
+- **Verify**: Redis Cloud connection from both services
+- **Test**: Redis pub/sub communication working
 
-# Check bot permissions in Discord
-# Ensure bot has "Use Slash Commands" permission
-```
-
-#### "No knowledge base found"
-```bash
-# Verify RAG service is running
-curl http://localhost:3000/api/health  # tech-docs service
-
-# Check Pinecone connection
-# Ensure index exists with correct dimensions (1536)
-
-# Verify environment variables
-echo $PINECONE_API_KEY
-echo $PINECONE_INDEX_NAME
-```
-
-#### "Redis connection failed"
-```bash
-# Test Redis connection
-redis-cli -u $REDIS_URL ping
-
-# Check firewall/network
-telnet localhost 6379
-
-# Verify environment variables match
-grep REDIS_URL .env
-grep REDIS_URL ../tech-docs/.env.local
-```
-
-### Debug Mode
-
-```bash
-# Enable debug logging
-export LOG_LEVEL=debug
-npm run dev
-
-# Test Redis events
-docker exec redis redis-cli MONITOR
-```
+#### Performance issues
+- **Render Free Tier**: Bot sleeps after 15 minutes of inactivity (50+ second wake time)
+- **Solution**: Upgrade to Render paid tier ($7/month) for always-on
+- **Alternative**: Use Railway or other platforms
 
 ## 🤝 Contributing
 
-1. **Fork both repositories**
+1. **Fork this repository**
    - [discord-rag-bot](https://github.com/troy8chen/discord-rag-bot)
-   - [tech-docs](https://github.com/troy8chen/tech-docs)
 
 2. **Create feature branch**
    ```bash
@@ -468,73 +284,63 @@ docker exec redis redis-cli MONITOR
    ```bash
    npm test
    npm run lint
-   npm run type-check
    ```
 
 4. **Submit Pull Request**
-   - Test with live bot in our Discord server
+   - Test with the live bot in Discord
    - Include screenshots/examples
    - Update documentation if needed
 
-## 📈 Performance & Costs
+## 📈 Current Production Stats
 
-### Expected Performance
-- **Response Time**: 1-3 seconds for complex queries
-- **Throughput**: 100+ concurrent users
-- **Accuracy**: 95%+ relevant responses
-- **Uptime**: 99.9% with proper deployment
+### Performance Metrics (Live System)
+- **Response Time**: 1-3 seconds for AI queries
+- **Uptime**: 99%+ (Render free tier with sleep)
+- **Redis Latency**: <50ms (Redis Cloud)
+- **Deployment**: Automated via GitHub Actions
 
-### Cost Estimates (Monthly)
-- **OpenAI API**: $5-20 (depending on usage)
-- **Pinecone**: $0-70 (free tier → starter)
-- **Redis**: $0-15 (development → production)
-- **Hosting**: $10-30 (Railway/Render/etc.)
-- **Total**: ~$15-135/month for production use
+### Infrastructure Costs (Current)
+- **Discord Bot**: Free (Render free tier)
+- **Redis**: Free (Redis Cloud 30MB tier)
+- **RAG Worker**: Deploy needed (~$0-7/month)
+- **Total Current Cost**: $0/month
+
+### Scaling Options
+- **Render Starter**: $7/month (always-on bot)
+- **Railway**: $5-10/month (bot + RAG worker)
+- **Redis Cloud Paid**: $5+/month (larger datasets)
 
 ## 🎯 Use Cases
 
-### Community Support
-- **Discord Communities**: Automated expert assistance
-- **Developer Onboarding**: Interactive documentation
-- **24/7 Support**: Always-available knowledge base
+### Discord Communities
+- **24/7 Expert Support**: Always-available AI assistance
+- **Knowledge Base Access**: Instant access to documentation
+- **Developer Onboarding**: Interactive learning assistant
 
-### Internal Teams  
-- **Team Knowledge**: Private documentation assistant
-- **Code Reviews**: Best practice suggestions
-- **Training**: Interactive learning companion
+### Integration Ready
+- **Multi-Platform**: Easy to port to Slack, Teams, etc.
+- **API Service**: RESTful endpoints available
+- **Custom Knowledge**: Swap RAG data sources easily
 
-### Integration Examples
-- **Slack Bots**: Port to Slack with minimal changes
-- **CLI Tools**: Command-line knowledge assistant  
-- **Web Widgets**: Embed in documentation sites
-- **API Services**: RESTful knowledge endpoints
+## 🔮 Current Roadmap
 
-## 🔮 Roadmap
+### ✅ Completed
+- Production Discord bot deployment
+- Redis Cloud integration
+- CI/CD pipeline with GitHub Actions
+- Health monitoring and logging
+- Event-driven architecture
 
-### Phase 1 ✅ (Complete)
-- Core Discord bot with slash commands
-- Redis pub/sub integration
-- Production-ready error handling
-- CI/CD pipeline with Docker
-- Comprehensive monitoring
-
-### Phase 2 ✅ (Complete)  
-- Health monitoring endpoints
-- Performance optimization
-- Automated testing suite
-- Production deployment guides
-
-### Phase 3 (Current)
+### 🚧 In Progress
+- RAG worker deployment automation
 - Enhanced conversation context
-- Multi-server support
-- Advanced analytics
-- Rate limiting improvements
+- Performance optimization
 
-### Phase 4 (Future)
-- Conversation history persistence
+### 📋 Next Steps
+- Advanced analytics dashboard
+- Multi-server support
 - User preference learning
-- Multi-language support
-- Advanced admin dashboard
+- Conversation history persistence
 
 ## 📄 License
 
@@ -544,7 +350,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **[tech-docs RAG System](https://github.com/troy8chen/tech-docs)** - Powerful AI knowledge base
 - **Discord.js** - Excellent Discord API library
-- **Redis** - Reliable message queue infrastructure
+- **Redis Cloud** - Reliable managed Redis service
+- **Render** - Simple deployment platform
 - **OpenAI** - GPT-4 and embedding models
 - **Pinecone** - Vector database for knowledge retrieval
 
