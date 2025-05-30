@@ -1,5 +1,5 @@
 import { config as dotenvConfig } from 'dotenv';
-import type { DiscordConfig, RedisConfig, AppConfig } from '@/types/events';
+import type { DiscordConfig, RedisConfig, AppConfig } from '../types/events';
 
 // Load environment variables
 dotenvConfig();
