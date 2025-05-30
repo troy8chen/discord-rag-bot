@@ -13,6 +13,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:redis": "node scripts/test-redis.js",
     "clean": "rm -rf dist",
     "setup": "chmod +x scripts/dev-setup.sh && ./scripts/dev-setup.sh"
   },
