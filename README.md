@@ -267,10 +267,60 @@ docker run -d -e DISCORD_BOT_TOKEN=... -e REDIS_URL=... discord-bot
 - Google Cloud Run
 
 **Redis Options:**
-- Redis Cloud (free tier available)
-- Railway Redis addon
-- AWS ElastiCache
-- DigitalOcean Redis
+- **Redis Cloud** (recommended - free tier available)
+- **Railway Redis addon** (if using Railway for apps)
+- **AWS ElastiCache** (enterprise)
+- **DigitalOcean Redis** (mid-scale)
+
+### 🎯 Redis Deployment Strategy
+
+**Why Deploy Redis Separately?**
+
+✅ **Shared Resource**: Both `discord-rag-bot` AND `tech-docs` repos use same Redis  
+✅ **Independent Scaling**: Scale Redis separately from apps  
+✅ **Cost Efficient**: One Redis instance serves multiple services  
+✅ **Better Reliability**: Managed services have built-in backups/monitoring  
+✅ **Microservices Best Practice**: Proper separation of concerns  
+
+**Architecture:**
+```mermaid
+graph TB
+    A[Discord Bot<br/>Railway/Docker] --> D[Redis Cloud<br/>Managed Service]
+    B[RAG Worker<br/>Railway/Docker] --> D
+    C[Next.js Web<br/>Vercel/Railway] --> D
+    
+    style D fill:#ff6b6b,color:#fff
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#e8f5e8
+```
+
+**Setup Instructions:**
+
+1. **Create Redis Cloud Account**: [redis.com/try-free](https://redis.com/try-free/)
+2. **Create Database**:
+   - Choose "Fixed" plan (30MB free)
+   - Select region closest to your deployments
+   - Note the connection string
+3. **Get Connection URL**:
+   ```
+   Format: redis://username:password@host:port
+   Example: redis://default:abc123@redis-12345.c1.us-east-1-1.ec2.cloud.redislabs.com:12345
+   ```
+4. **Update Both Projects**:
+   ```bash
+   # discord-rag-bot/.env
+   REDIS_URL=redis://username:password@host:port
+   
+   # tech-docs/.env.local  
+   REDIS_URL=redis://username:password@host:port
+   ```
+
+**Deployment Benefits:**
+- 🔄 **Zero Downtime**: Update apps without affecting Redis
+- 📊 **Monitoring**: Built-in Redis metrics and alerts
+- 🔧 **Maintenance**: Automatic backups and updates
+- 💰 **Cost**: Free tier supports 1000+ daily queries
 
 ## 🔧 Development
 
