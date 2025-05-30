@@ -1,0 +1,335 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Discord RAG Bot - Project Rules & Architecture
+
+## Project Overview
+Discord chatbot ecosystem that extends an existing Next.js RAG application using **separate repositories** with **Event-Driven Architecture** and Redis message queue for scalable, fault-tolerant processing.
+
+## Architecture: Multi-Repository Event-Driven System
+
+### Repository Structure (Separate Repos Strategy)
+- **inngest-document-app**: Existing Next.js RAG service (keep as-is, minimal additions)
+- **discord-rag-bot**: New Discord client with Redis pub/sub
+- **Redis**: Separate service (message broker between repos)
+
+### Existing Infrastructure (Unchanged)
+- **Primary App**: `inngest-document-app/` (Next.js + Pinecone + OpenAI)
+- **Vector Store**: Pinecone with `inngest-docs` namespace
+- **AI Model**: GPT-4 with text-embedding-3-small
+- **RAG Logic**: Located in `inngest-document-app/src/lib/ai.ts` (100% reused)
+
+### New Event-Driven Strategy
+1. **Discord Bot** (new repo): Publishes RAG query events to Redis
+2. **RAG Worker** (add to existing repo): Processes events using existing RAG logic
+3. **Redis**: Message broker running as separate service
+4. **Independent Deployment**: Each repo deploys separately
+
+## System Data Flow
+Discord User → Discord Bot (new repo) → Redis → RAG Worker (existing repo) → Redis → Discord Bot → Discord User
+
+
+## Repository Structure Plan
+
+### discord-rag-bot/ (New Repository)
+discord-rag-bot/
+├── src/
+│ ├── bot/
+│ │ ├── client.ts # Discord client with event publishing
+│ │ └── responseHandler.ts # Subscribes to RAG responses
+│ ├── services/
+│ │ ├── eventBus.ts # Redis pub/sub client
+│ │ └── messageFormatter.ts # Discord message formatting
+│ ├── utils/
+│ │ ├── config.ts # Discord + Redis configuration
+│ │ └── logger.ts # Logging utilities
+│ └── index.ts # Entry point
+├── .env.example # Environment template
+├── README.md # Setup instructions + links to other repos
+└── package.json # Discord.js + Redis dependencies
+
+### inngest-document-app/ (Existing Repository - Safe Additions)
+inngest-document-app/
+├── src/lib/
+│ ├── ai.ts # Existing RAG logic (UNCHANGED!)
+│ └── discordWorker.ts # NEW: Minimal Redis worker
+├── scripts/
+│ ├── discord-worker.ts # NEW: Worker startup script
+│ └── ingest-docs.ts # Existing doc ingestion (unchanged)
+├── package.json # ADD: ioredis dependency only
+└── (existing infrastructure) # All existing files unchanged
+
+
+## Safe Integration Guidelines
+
+### For inngest-document-app (Existing Repo)
+**🛡️ Safety First Approach:**
+- ✅ Zero changes to existing `src/lib/ai.ts`
+- ✅ Backward compatible - web interface unaffected
+- ✅ Optional worker - only runs when explicitly started
+- ✅ Minimal dependencies - only add `ioredis`
+- ✅ Easy rollback - create backup branch first
+
+**Safe Integration Steps:**
+1. Create backup branch: `git checkout -b backup/before-discord`
+2. Create feature branch: `git checkout -b feature/discord-worker`
+3. Install minimal deps: `npm install ioredis`
+4. Add `src/lib/discordWorker.ts` (uses existing `generateRAGResponse`)
+5. Add `scripts/discord-worker.ts` (startup script)
+6. Add script: `"discord-worker": "tsx scripts/discord-worker.ts"`
+7. Test existing app still works
+8. Test worker with Redis
+9. Commit and merge safely
+
+## Shared Standards Across Repositories
+
+### Event Schema (Copy to Both Repos)
+```typescript
+interface RAGQueryEvent {
+  id: string;           // UUID for tracking
+  userId: string;       // Discord user ID
+  channelId: string;    // Discord channel ID
+  message: string;      // User question
+  domain: string;       // RAG domain (default: 'inngest')
+  timestamp: number;    // Unix timestamp
+}
+
+interface RAGResponseEvent {
+  id: string;           // Same as query ID
+  userId: string;       // Same as query
+  channelId: string;    // Same as query
+  response: string;     // AI response text
+  sources: string[];    // Source URLs
+  success: boolean;     // Process success flag
+  timestamp: number;    // Response timestamp
+}
+```
+
+### Redis Channels (Standardized)
+- **Query Channel**: `rag:query` (Discord bot → RAG worker)
+- **Response Channel**: `rag:response` (RAG worker → Discord bot)
+
+## Environment Variables
+
+### Discord Bot Repository (.env)
+```env
+# Discord Configuration
+DISCORD_BOT_TOKEN=your_bot_token
+DISCORD_CLIENT_ID=your_app_id
+
+# Redis Configuration
+REDIS_URL=redis://localhost:6379
+
+# Optional Settings
+LOG_LEVEL=info
+NODE_ENV=development
+```
+
+### RAG Service Repository (add to existing .env.local)
+```env
+# Existing variables (keep unchanged)
+PINECONE_API_KEY=your_key
+OPENAI_API_KEY=your_key
+PINECONE_INDEX_NAME=tech-docs
+
+# New Redis variable (add this only)
+REDIS_URL=redis://localhost:6379
+```
+
+## Dependencies
+
+### Discord Bot (New Repo)
+```json
+{
+  "dependencies": {
+    "discord.js": "^14.x.x",
+    "ioredis": "^5.x.x",
+    "uuid": "^9.x.x",
+    "dotenv": "^16.x.x",
+    "typescript": "^5.x.x",
+    "tsx": "^4.x.x"
+  }
+}
+```
+
+### RAG Service (Add to Existing)
+```json
+{
+  "dependencies": {
+    "ioredis": "^5.x.x"
+  }
+}
+```
+
+## Development Workflow
+
+### Redis Setup (Run Once)
+```bash
+# Option 1: Local Redis
+redis-server
+
+# Option 2: Docker Redis
+docker run -d -p 6379:6379 --name redis redis:7-alpine
+```
+
+### Daily Development Startup
+```bash
+# Terminal 1: Redis (if not running)
+redis-server
+
+# Terminal 2: RAG Worker (in inngest-document-app)
+cd inngest-document-app
+npm run discord-worker
+
+# Terminal 3: Discord Bot (in discord-rag-bot)
+cd ../discord-rag-bot
+npm run dev
+
+# Terminal 4: Web Interface (optional, in inngest-document-app)
+cd inngest-document-app
+npm run dev
+```
+
+## Deployment Architecture
+
+### Production Setup
+```mermaid
+graph TB
+    A[Discord Bot<br/>New Repo] --> D[Redis Service<br/>Managed/Cloud]
+    B[RAG Worker<br/>Existing Repo] --> D
+    C[Next.js Web<br/>Existing Repo] --> D
+    D --> B
+    D --> A
+    
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5  
+    style C fill:#e8f5e8
+    style D fill:#fff3e0
+```
+
+**Independent Deployment:**
+- **Discord Bot**: Deploy from discord-rag-bot repo
+- **RAG Service**: Deploy from inngest-document-app repo (existing process)
+- **Redis**: Managed service (Redis Cloud, AWS ElastiCache, etc.)
+
+### Scaling Strategy
+- **Discord Bot**: Single instance per Discord application
+- **RAG Workers**: Multiple instances from same repo for horizontal scaling
+- **Redis**: Managed cluster for high availability
+- **Next.js Web**: Existing deployment strategy unchanged
+
+## Repository Coordination
+
+### Documentation Strategy
+Each repository includes:
+- Setup instructions specific to that service
+- Links to related repositories
+- Shared event schema documentation
+- Environment variable requirements
+
+### Version Coordination
+- **Event Schema Changes**: Coordinate updates across both repos
+- **Breaking Changes**: Document in both repositories
+- **Independent Releases**: Each repo has its own version/release cycle
+
+### GitHub Management
+- **Repository Topics**: Use consistent tags (e.g., #inngest-rag, #discord-bot)
+- **Cross-References**: Link issues/PRs across repositories when related
+- **Shared Documentation**: Create ecosystem overview in each repo's README
+
+## Testing Strategy
+
+### Per Repository
+- **Discord Bot**: Unit tests for Discord logic, integration tests for Redis
+- **RAG Service**: Unit tests for worker, integration tests for existing RAG + Redis
+- **Cross-Repository**: End-to-end tests spanning both services
+
+### Integration Testing
+- Redis connectivity tests in both repos
+- Event schema validation
+- Full Discord → RAG → Response flow testing
+
+## Benefits of Multi-Repository Architecture
+
+### Development
+- ✅ **Independent Development**: Teams can work on different repos
+- ✅ **Technology Flexibility**: Discord bot could be rewritten in different language
+- ✅ **Focused CI/CD**: Simple, fast pipelines per service
+- ✅ **Clear Ownership**: Different teams can own different repositories
+
+### Deployment
+- ✅ **Independent Scaling**: Scale Discord bot vs RAG service independently
+- ✅ **Rollback Safety**: Rollback one service without affecting others
+- ✅ **Zero Migration Risk**: Existing RAG service remains unchanged
+- ✅ **Service Isolation**: Issues in one service don't break others
+
+### Maintenance
+- ✅ **100% Code Reuse**: Existing RAG logic unchanged
+- ✅ **Clear Separation**: Each repo has focused responsibility
+- ✅ **Easy Debugging**: Issues isolated to specific repositories
+
+## GitHub Repository Setup (Production-Ready)
+
+### Repository Structure Strategy
+- **Independent Workflows**: Each repo manages its own CI/CD pipeline
+- **Cross-Repository Coordination**: Minimal, focused on documentation and issue linking
+- **Production-Ready Setup**: Complete CI/CD, Docker, documentation for Discord bot repo
+
+### Discord Bot Repository Setup (45 minutes)
+
+#### Phase 1: Repository Creation (15 mins)
+- Create GitHub repository with production-ready structure
+- Essential directories: `.github/workflows/`, `src/`, `docs/`, testing
+- Repository topics: `inngest-rag`, `discord-bot`, `redis`, `typescript`, `ai-chatbot`
+- Branch protection rules for main branch
+
+#### Phase 2: Essential Files (20 mins)
+- **README.md**: Comprehensive documentation with ecosystem links
+- **package.json**: Production dependencies and scripts
+- **.env.example**: Complete environment variable template
+- **Dockerfile**: Multi-stage production build
+- **docker-compose.yml**: Local development environment
+- **.github/workflows/ci.yml**: Full CI/CD pipeline
+
+#### Phase 3: CI/CD Pipeline (10 mins)
+```yaml
+# Automated testing with Redis service
+# TypeScript compilation and linting
+# Docker build for production
+# Deployment hooks (when needed)
+```
+
+### RAG Service Repository Strategy
+- **Keep Existing Setup**: Minimal changes to working system
+- **Optional Worker Testing**: Add simple CI for Discord worker if desired
+- **No Major Workflow Changes**: Existing deployment strategy unchanged
+
+### GitHub Workflow Benefits
+- **Professional Presentation**: Ready for team collaboration or open source
+- **Automated Quality**: Catch issues early with comprehensive testing
+- **Easy Deployment**: Docker + CI/CD ready for production
+- **Documentation-Driven**: Forces clear thinking about architecture
+- **Issue Tracking**: Templates for bugs, features, and coordination
+
+### Cross-Repository Coordination
+- **Documentation Links**: Each repo references related repositories
+- **Issue Cross-References**: Link related issues across repos when needed
+- **Event Schema Sync**: Shared interfaces documented in both repos
+- **Independent Releases**: Each repo has its own version/release cycle
+
+## Future Enhancements
+- [ ] Additional chat platforms as separate repositories
+- [ ] Shared npm package for event types (when needed)
+- [ ] Conversation context via Redis storage
+- [ ] Analytics and usage tracking
+- [ ] Admin dashboard as separate service
+- [ ] Multi-region deployment strategy
+
+## Migration Safety Checklist
+- [ ] Backup existing inngest-document-app repository
+- [ ] Test existing functionality before adding Discord worker
+- [ ] Minimal dependency additions (only ioredis)
+- [ ] Worker runs independently of existing web interface
+- [ ] Easy rollback plan if issues arise

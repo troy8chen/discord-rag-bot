@@ -1,0 +1,24 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Quality Assurance & Deployment
+## Testing Strategy
+
+### Test Structure(() => ({
+  on: jest.fn(),
+  login: jest.fn().mockResolvedValue(true),
+  user: { id: 'test-bot', tag: 'TestBot#1234' }
+}));
+
+// Mock RAG Client  
+export class MockRAGClient {
+  async query(message: string) {
+    return {
+      response: `Mock response for: ${message}`,
+      sources: ['mock-source'],
+      success: true
+    };
+  }
+}
