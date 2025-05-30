@@ -5,14 +5,17 @@
  * It publishes user queries to Redis and subscribes to AI responses to send back to Discord.
  */
 
-import { DiscordBot } from '@/bot/client';
-import { validateEnvironment, logConfigSummary } from '@/utils/config';
+import { DiscordBot } from './bot/client';
+import { HealthServer } from './health';
+import { validateEnvironment, logConfigSummary } from './utils/config';
+import { log } from './utils/logger';
 
 let discordBot: DiscordBot;
+let healthServer: HealthServer;
 
 async function main(): Promise<void> {
   try {
-    console.log('🚀 Starting Discord RAG Bot...');
+    log.info('🚀 Starting Discord RAG Bot...');
     
     // Validate environment configuration
     validateEnvironment();
@@ -26,11 +29,17 @@ async function main(): Promise<void> {
     discordBot = new DiscordBot();
     await discordBot.initialize();
     
-    console.log('✅ Discord RAG Bot is ready and connected!');
-    console.log('💬 Users can now mention the bot or send DMs to ask questions');
+    // Start health monitoring server
+    healthServer = new HealthServer(discordBot);
+    const port = parseInt(process.env.PORT || '3000');
+    await healthServer.start(port);
+    
+    log.info('✅ Discord RAG Bot is ready and connected!');
+    log.info('💬 Users can now mention the bot or send DMs to ask questions');
+    log.info(`🩺 Health monitoring available at http://localhost:${port}/health`);
     
   } catch (error) {
-    console.error('❌ Failed to start Discord RAG Bot:', error);
+    log.error('❌ Failed to start Discord RAG Bot', error);
     process.exit(1);
   }
 }
@@ -43,17 +52,21 @@ function setupGracefulShutdown(): void {
   
   signals.forEach(signal => {
     process.on(signal, async () => {
-      console.log(`\n🛑 Received ${signal}, shutting down gracefully...`);
+      log.info(`\n🛑 Received ${signal}, shutting down gracefully...`);
       
       try {
+        if (healthServer) {
+          await healthServer.stop();
+        }
+        
         if (discordBot) {
           await discordBot.shutdown();
         }
         
-        console.log('✅ Graceful shutdown completed');
+        log.info('✅ Graceful shutdown completed');
         process.exit(0);
       } catch (error) {
-        console.error('❌ Error during shutdown:', error);
+        log.error('❌ Error during shutdown', error);
         process.exit(1);
       }
     });
@@ -65,12 +78,12 @@ function setupGracefulShutdown(): void {
  */
 function setupErrorHandling(): void {
   process.on('unhandledRejection', (reason, promise) => {
-    console.error('❌ Unhandled Promise Rejection:', reason);
-    console.error('At:', promise);
+    log.error('❌ Unhandled Promise Rejection', reason);
+    log.error('At Promise:', promise);
   });
 
   process.on('uncaughtException', (error) => {
-    console.error('❌ Uncaught Exception:', error);
+    log.error('❌ Uncaught Exception', error);
     process.exit(1);
   });
 }
@@ -81,6 +94,6 @@ setupGracefulShutdown();
 
 // Start the application
 main().catch((error) => {
-  console.error('❌ Application startup failed:', error);
+  log.error('❌ Application startup failed', error);
   process.exit(1);
 }); 

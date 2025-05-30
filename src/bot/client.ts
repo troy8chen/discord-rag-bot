@@ -1,7 +1,8 @@
 import { Client, GatewayIntentBits, Events, Message, EmbedBuilder, ChannelType } from 'discord.js';
-import { EventBus } from '@/services/eventBus';
-import { getDiscordConfig, getAppConfig } from '@/utils/config';
-import { DiscordBotError } from '@/types/events';
+import { EventBus } from '../services/eventBus';
+import { getDiscordConfig, getAppConfig } from '../utils/config';
+import { log } from '../utils/logger';
+import { DiscordBotError } from '../types/events';
 
 /**
  * Discord Bot Client
@@ -34,7 +35,7 @@ export class DiscordBot {
    */
   async initialize(): Promise<void> {
     try {
-      console.log('🤖 Initializing Discord client...');
+      log.info('🤖 Initializing Discord client...');
       
       // Initialize Redis event bus first
       await this.eventBus.initialize();
@@ -42,9 +43,10 @@ export class DiscordBot {
       // Login to Discord
       await this.client.login(this.config.token);
       
-      console.log('✅ Discord bot initialized successfully');
+      log.info('✅ Discord bot initialized successfully');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      log.error('Failed to initialize Discord bot', error);
       throw new DiscordBotError(`Failed to initialize Discord bot: ${errorMessage}`);
     }
   }
@@ -55,7 +57,11 @@ export class DiscordBot {
   private setupEventHandlers(): void {
     // Bot ready event
     this.client.once(Events.ClientReady, (readyClient) => {
-      console.log(`🎉 Discord bot is ready! Logged in as ${readyClient.user.tag}`);
+      log.info(`🎉 Discord bot is ready! Logged in as ${readyClient.user.tag}`);
+      log.systemHealth('discord-client', 'healthy', { 
+        username: readyClient.user.tag,
+        guildCount: readyClient.guilds.cache.size 
+      });
     });
 
     // Message events
@@ -63,11 +69,12 @@ export class DiscordBot {
 
     // Error handling
     this.client.on(Events.Error, (error) => {
-      console.error('❌ Discord client error:', error);
+      log.error('❌ Discord client error', error);
+      log.systemHealth('discord-client', 'unhealthy', { error: error.message });
     });
 
     this.client.on(Events.Warn, (warning) => {
-      console.warn('⚠️ Discord client warning:', warning);
+      log.warn('⚠️ Discord client warning', { warning });
     });
   }
 
@@ -75,6 +82,8 @@ export class DiscordBot {
    * Handle incoming Discord messages
    */
   private async handleMessage(message: Message): Promise<void> {
+    const startTime = Date.now();
+    
     try {
       // Ignore bot messages
       if (message.author.bot) return;
@@ -108,7 +117,7 @@ export class DiscordBot {
       }
 
       // Send query to RAG service
-      console.log(`💬 Processing message from ${message.author.tag}: "${content}"`);
+      log.userQuery(message.author.id, content, '');
       
       const queryId = await this.eventBus.publishQuery(
         message.author.id,
@@ -118,15 +127,20 @@ export class DiscordBot {
 
       // Wait for response
       const response = await this.eventBus.waitForResponse(queryId, this.appConfig.responseTimeout);
+      const responseTime = Date.now() - startTime;
 
       if (response.success) {
         await this.sendRAGResponse(message, response.response, response.sources);
+        log.botResponse(message.author.id, queryId, true, responseTime);
       } else {
         await this.sendErrorResponse(message, 'I encountered an error while processing your question. Please try again.');
+        log.botResponse(message.author.id, queryId, false, responseTime);
       }
 
     } catch (error) {
-      console.error('❌ Error handling message:', error);
+      const responseTime = Date.now() - startTime;
+      log.error('❌ Error handling message', error);
+      log.botResponse(message.author.id, 'unknown', false, responseTime);
       await this.sendErrorResponse(message, 'Something went wrong while processing your request. Please try again later.');
     }
   }
@@ -162,7 +176,7 @@ export class DiscordBot {
         await message.reply({ embeds: [embed] });
       }
     } catch (error) {
-      console.error('❌ Error sending RAG response:', error);
+      log.error('❌ Error sending RAG response', error);
       await this.sendErrorResponse(message, 'I found an answer but had trouble formatting it. Please try again.');
     }
   }
@@ -180,7 +194,7 @@ export class DiscordBot {
 
       await message.reply({ embeds: [embed] });
     } catch (error) {
-      console.error('❌ Error sending error response:', error);
+      log.error('❌ Error sending error response', error);
       // Fallback to plain text
       await message.reply(`❌ ${errorText}`);
     }
@@ -238,7 +252,7 @@ export class DiscordBot {
    * Shutdown the bot gracefully
    */
   async shutdown(): Promise<void> {
-    console.log('🛑 Shutting down Discord bot...');
+    log.info('🛑 Shutting down Discord bot...');
     
     if (this.eventBus) {
       await this.eventBus.close();
@@ -248,7 +262,7 @@ export class DiscordBot {
       this.client.destroy();
     }
     
-    console.log('✅ Discord bot shutdown complete');
+    log.info('✅ Discord bot shutdown complete');
   }
 
   /**
@@ -256,5 +270,21 @@ export class DiscordBot {
    */
   isReady(): boolean {
     return this.client.isReady();
+  }
+
+  /**
+   * Health check endpoint
+   */
+  getHealthStatus() {
+    return {
+      status: this.isReady() ? 'healthy' : 'unhealthy',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      discord: {
+        ready: this.isReady(),
+        guilds: this.client.guilds?.cache.size || 0,
+        ping: this.client.ws.ping
+      }
+    };
   }
 } 

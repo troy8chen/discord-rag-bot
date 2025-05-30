@@ -1,12 +1,11 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 import { v4 as uuidv4 } from 'uuid';
-import type { RAGQueryEvent, RAGResponseEvent } from '@/types/events';
-import { REDIS_CHANNELS, RedisConnectionError } from '@/types/events';
-import { getRedisConfig, getAppConfig } from '@/utils/config';
+import { RAGQueryEvent, RAGResponseEvent } from '../types/events';
+import { getRedisConfig, getAppConfig } from '../utils/config';
 
 /**
- * Redis Event Bus for Discord RAG Bot
- * Handles communication with the RAG worker service
+ * Event Bus for Redis pub/sub messaging
+ * Handles communication between Discord bot and RAG service
  */
 export class EventBus {
   private publisher: Redis;
@@ -23,82 +22,70 @@ export class EventBus {
   }
 
   /**
-   * Initialize the event bus and start listening for responses
+   * Initialize Redis connections and set up subscriptions
    */
   async initialize(): Promise<void> {
+    if (this.isConnected) {
+      return;
+    }
+
     try {
-      console.log('📨 Connecting to Redis...');
-      
-      // Setup error handlers
-      this.publisher.on('error', (error) => {
-        console.error('❌ Redis Publisher Error:', error);
-      });
-
-      this.subscriber.on('error', (error) => {
-        console.error('❌ Redis Subscriber Error:', error);
-      });
-
-      // Subscribe to RAG responses
-      await this.subscriber.subscribe(REDIS_CHANNELS.RAG_RESPONSE);
+      // Subscribe to response channel
+      await this.subscriber.subscribe('rag:response');
       
       // Handle incoming responses
-      this.subscriber.on('message', (channel, message) => {
-        if (channel === REDIS_CHANNELS.RAG_RESPONSE) {
+      this.subscriber.on('message', (channel: string, message: string) => {
+        if (channel === 'rag:response') {
           this.handleRAGResponse(message);
         }
       });
 
       this.isConnected = true;
-      console.log('✅ Redis EventBus connected and listening for responses');
-      
+      console.log('✅ Redis event bus initialized');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new RedisConnectionError(`Failed to initialize Redis: ${errorMessage}`);
-    }
-  }
-
-  /**
-   * Publish a query to the RAG service
-   */
-  async publishQuery(userId: string, channelId: string, message: string): Promise<string> {
-    if (!this.isConnected) {
-      throw new RedisConnectionError('EventBus not initialized');
-    }
-
-    const queryId = uuidv4();
-    const query: RAGQueryEvent = {
-      id: queryId,
-      userId,
-      channelId,
-      message,
-      domain: 'inngest', // Default domain
-      timestamp: Date.now()
-    };
-
-    try {
-      await this.publisher.publish(REDIS_CHANNELS.RAG_QUERY, JSON.stringify(query));
-      console.log(`📤 Published query ${queryId} for user ${userId}`);
-      return queryId;
-    } catch (error) {
-      console.error('❌ Failed to publish query:', error);
+      console.error('❌ Failed to initialize Redis event bus:', error);
       throw error;
     }
   }
 
   /**
-   * Register a handler for a specific query response
+   * Publish RAG query to processing service
    */
-  waitForResponse(queryId: string, timeoutMs: number = 30000): Promise<RAGResponseEvent> {
-    return new Promise((resolve, reject) => {
-      // Set timeout
-      const timeout = setTimeout(() => {
-        this.responseHandlers.delete(queryId);
-        reject(new Error(`Query ${queryId} timed out after ${timeoutMs}ms`));
-      }, timeoutMs);
+  async publishQuery(userId: string, channelId: string, message: string): Promise<string> {
+    const queryId = uuidv4();
+    
+    const queryEvent: RAGQueryEvent = {
+      id: queryId,
+      userId,
+      channelId,
+      message,
+      domain: 'inngest',
+      timestamp: Date.now()
+    };
 
-      // Register response handler
-      this.responseHandlers.set(queryId, (response: RAGResponseEvent) => {
-        clearTimeout(timeout);
+    await this.publisher.publish('rag:query', JSON.stringify(queryEvent));
+    console.log(`📤 Published query ${queryId} to RAG service`);
+    
+    return queryId;
+  }
+
+  /**
+   * Wait for RAG response with timeout
+   */
+  async waitForResponse(queryId: string, timeoutMs: number): Promise<RAGResponseEvent> {
+    const appConfig = getAppConfig();
+    const timeout = timeoutMs || appConfig.responseTimeout;
+
+    return new Promise((resolve, reject) => {
+      // Set up timeout
+      const timer = setTimeout(() => {
+        this.responseHandlers.delete(queryId);
+        reject(new Error(`Response timeout for query ${queryId}`));
+      }, timeout);
+
+      // Set up response handler
+      this.responseHandlers.set(queryId, (response) => {
+        clearTimeout(timer);
         this.responseHandlers.delete(queryId);
         resolve(response);
       });
@@ -111,48 +98,35 @@ export class EventBus {
   private handleRAGResponse(message: string): void {
     try {
       const response: RAGResponseEvent = JSON.parse(message);
-      console.log(`📥 Received response ${response.id} for user ${response.userId}`);
-
-      // Find and call the response handler
       const handler = this.responseHandlers.get(response.id);
+      
       if (handler) {
+        console.log(`📥 Received response for query ${response.id}`);
         handler(response);
-      } else {
-        console.warn(`⚠️ No handler found for response ${response.id}`);
       }
     } catch (error) {
-      console.error('❌ Failed to handle RAG response:', error);
+      console.error('❌ Error handling RAG response:', error);
     }
   }
 
   /**
-   * Close Redis connections
+   * Health check - ping Redis
+   */
+  async ping(): Promise<void> {
+    await this.publisher.ping();
+  }
+
+  /**
+   * Clean shutdown
    */
   async close(): Promise<void> {
-    console.log('🛑 Closing Redis connections...');
-    
-    if (this.subscriber) {
-      await this.subscriber.unsubscribe();
-      this.subscriber.disconnect();
-    }
-    
     if (this.publisher) {
-      this.publisher.disconnect();
+      await this.publisher.quit();
     }
-    
+    if (this.subscriber) {
+      await this.subscriber.quit();
+    }
     this.isConnected = false;
-    console.log('✅ Redis connections closed');
-  }
-
-  /**
-   * Health check
-   */
-  async ping(): Promise<boolean> {
-    try {
-      const result = await this.publisher.ping();
-      return result === 'PONG';
-    } catch {
-      return false;
-    }
+    console.log('✅ Redis event bus closed');
   }
 } 
