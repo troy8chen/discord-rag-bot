@@ -63,7 +63,7 @@ graph TB
 - Bot: `DocsAI#6774` (Online 24/7)
 - Use mentions: `@DocsAI your question here`
 - No setup required - just join and test!
-- Need access? Contact [@troy8chen](https://github.com/troy8chen)
+- Need access? Contact **troy.dev** on Discord or [@troy8chen](https://github.com/troy8chen) on GitHub
 
 ### Option 2: Deploy Your Own Instance
 
