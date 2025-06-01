@@ -150,16 +150,25 @@ export class DiscordBot {
    */
   private async sendRAGResponse(message: Message, response: string, sources: string[]): Promise<void> {
     try {
-      // Split long responses into chunks
-      const chunks = this.splitMessage(response, 1900);
+      // Brief initial delay
+      await new Promise(resolve => setTimeout(resolve, 800));
       
-      for (let i = 0; i < chunks.length; i++) {
-        const chunk = chunks[i];
-        if (!chunk) continue; // Skip undefined chunks
+      // Split response into progressive chunks (sentences/paragraphs)
+      const progressiveChunks = this.splitIntoProgressiveChunks(response);
+      let accumulatedText = '';
+      
+      for (let i = 0; i < progressiveChunks.length; i++) {
+        const chunk = progressiveChunks[i];
+        accumulatedText += (accumulatedText ? ' ' : '') + chunk;
+        
+        // Small delay between progressive chunks
+        if (i > 0) {
+          await new Promise(resolve => setTimeout(resolve, 400));
+        }
         
         const embed = new EmbedBuilder()
-          .setColor(0x5865F2) // Discord brand color
-          .setDescription(chunk)
+          .setColor(0x5865F2)
+          .setDescription(accumulatedText)
           .setTimestamp();
 
         // Add title to first chunk
@@ -167,17 +176,108 @@ export class DiscordBot {
           embed.setTitle('📚 Documentation Assistant');
         }
 
-        // Add sources to last chunk
-        if (i === chunks.length - 1 && sources.length > 0) {
-          const sourceText = sources.slice(0, 3).map((source, idx) => `[${idx + 1}](${source})`).join(' • ');
+        // Add sources to final chunk
+        if (i === progressiveChunks.length - 1 && sources.length > 0) {
+          const sourceText = sources.slice(0, 3).map((source) => {
+            const title = this.extractSourceTitle(source);
+            return `[${title}](${source})`;
+          }).join('\n');
           embed.addFields({ name: '🔗 Sources', value: sourceText, inline: false });
         }
 
-        await message.reply({ embeds: [embed] });
+        // Edit the previous message instead of sending new ones
+        if (i === 0) {
+          const reply = await message.reply({ embeds: [embed] });
+          // Store reference for editing
+          for (let j = 1; j < progressiveChunks.length; j++) {
+            const nextChunk = progressiveChunks[j];
+            accumulatedText += ' ' + nextChunk;
+            
+            await new Promise(resolve => setTimeout(resolve, 400));
+            
+            const updatedEmbed = new EmbedBuilder()
+              .setColor(0x5865F2)
+              .setTitle('📚 Documentation Assistant')
+              .setDescription(accumulatedText)
+              .setTimestamp();
+
+            // Add sources to final update
+            if (j === progressiveChunks.length - 1 && sources.length > 0) {
+              const sourceText = sources.slice(0, 3).map((source) => {
+                const title = this.extractSourceTitle(source);
+                return `[${title}](${source})`;
+              }).join('\n');
+              updatedEmbed.addFields({ name: '🔗 Sources', value: sourceText, inline: false });
+            }
+
+            await reply.edit({ embeds: [updatedEmbed] });
+          }
+          break;
+        }
       }
     } catch (error) {
       log.error('❌ Error sending RAG response', error);
       await this.sendErrorResponse(message, 'I found an answer but had trouble formatting it. Please try again.');
+    }
+  }
+
+  /**
+   * Split response into progressive chunks for typing effect
+   */
+  private splitIntoProgressiveChunks(text: string): string[] {
+    // Split by sentences, but keep reasonable chunk sizes
+    const sentences = text.split(/(?<=[.!?])\s+/);
+    const chunks: string[] = [];
+    let currentChunk = '';
+    
+    for (const sentence of sentences) {
+      // If adding this sentence would make chunk too long, start new chunk
+      if (currentChunk && (currentChunk + ' ' + sentence).length > 200) {
+        chunks.push(currentChunk.trim());
+        currentChunk = sentence;
+      } else {
+        currentChunk += (currentChunk ? ' ' : '') + sentence;
+      }
+    }
+    
+    if (currentChunk) {
+      chunks.push(currentChunk.trim());
+    }
+    
+    return chunks.filter(chunk => chunk.length > 0);
+  }
+
+  /**
+   * Extract meaningful title from URL for source display
+   */
+  private extractSourceTitle(url: string): string {
+    try {
+      // Remove protocol and query parameters
+      const cleanUrl = url.replace(/^https?:\/\//, '').split('?')[0];
+      
+      // Extract path segments, skip common prefixes
+      const pathSegments = cleanUrl.split('/').filter(segment => 
+        segment && segment !== 'docs' && segment !== 'www.inngest.com'
+      );
+      
+      if (pathSegments.length === 0) return 'Documentation';
+      
+      // Take the last meaningful segment and format it
+      const lastSegment = pathSegments[pathSegments.length - 1];
+      
+      // Handle common patterns like "error-handling" -> "Error Handling"
+      if (lastSegment.includes('-')) {
+        return lastSegment
+          .split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+      }
+      
+      // Capitalize first letter
+      return lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1);
+      
+    } catch (error) {
+      return 'Documentation';
     }
   }
 
@@ -215,37 +315,6 @@ export class DiscordBot {
 
     this.userRateLimits.set(userId, now);
     return false;
-  }
-
-  /**
-   * Split message into Discord-compatible chunks
-   */
-  private splitMessage(text: string, maxLength: number): string[] {
-    if (text.length <= maxLength) {
-      return [text];
-    }
-
-    const chunks: string[] = [];
-    let currentChunk = '';
-
-    const sentences = text.split(/(?<=[.!?])\s+/);
-    
-    for (const sentence of sentences) {
-      if ((currentChunk + sentence).length <= maxLength) {
-        currentChunk += (currentChunk ? ' ' : '') + sentence;
-      } else {
-        if (currentChunk) {
-          chunks.push(currentChunk);
-        }
-        currentChunk = sentence;
-      }
-    }
-
-    if (currentChunk) {
-      chunks.push(currentChunk);
-    }
-
-    return chunks;
   }
 
   /**
